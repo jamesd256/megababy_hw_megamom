@@ -89,7 +89,9 @@ slider33:0<0,15,0>--Controller 4 Channel
 slider40:0<-99,9999,1>--Start Beat Position
 slider41:1<0,1,1>--Play Before Start
 slider42:-99<-99,9999,1>--End Beat Position
-slider43:0<0,1,1{--,reset}>Reset HW
+slider43:0<0,1,1{--,reset}>--Reset HW
+slider44:0<0,1,1{noshift,shift}>Shift state
+slider45:0<0,1,1{not-selected,selected}>--Selected track
 
 in_pin:none
 out_pin:none
@@ -694,6 +696,8 @@ end_beatpos=slider42;
 notenames_file=slider15|0;
 
 reset_ctrl=slider43|0;
+shift_ctrl=slider44|0;
+selected_ctrl=slider45|0;
 
 @serialize
 // Write:
@@ -1088,20 +1092,22 @@ setPattern(patNo);
 function getRow(noteNo) local(row)
 (
 (noteNo < 64) ? row = floor(noteNo / 8) + 1;
-(noteNo > 81 && noteNo < 90) ? row = 90 - noteNo;
+(noteNo > 101 && noteNo < 110) ? row = 110 - noteNo;
 (noteNo > 63 && noteNo < 72) ? row = 0;
 (noteNo == 98) ? row = 0;
-(noteNo == 100) ? row = 9;
+//(noteNo == 100) ? row = 9;
+//(noteNo > 100) ? row = noteNo - 100;
 row;
 );
 
 function getCol(noteNo) local(col)
 (
 (noteNo < 64) ? col = noteNo % 8;
-(noteNo > 81 && noteNo < 90) ? col = 8;
+(noteNo > 101 && noteNo < 110) ? col = 8;
 (noteNo > 63 && noteNo < 72) ? col = noteNo - 64;
 (noteNo == 98) ? col = 8;
-(noteNo == 100) ? col = 0;
+//(noteNo == 100) ? col = 0;
+//(noteNo > 100) ? col = 9;
 col;
 );
 
@@ -1428,10 +1434,15 @@ i = 1;
 (row != lastRow) ?
   (
   loop(8,
-        (i != row) ? setCell(i,8,0) : setCell(i,8,4);
+    
+        (i != row) ? 
+        (
+          setCell(i,8,0);
+          aMyRowSelected = 1;
+        ) : setCell(i,8,4);
        i += 1;
       );
-   akaiRowSelect = row;  
+     ect = row;  
    getRowVolumes(akaiRowSelect + akaiNoteOffset);
    // if soloing; reset, then set solo for current row
    (akaiSolo) ?
@@ -1447,6 +1458,7 @@ i = 1;
    setCell(lastRow,8,0);
    akaiRowSelect = 0;
    lastRow = 0;
+   aMyRowSelected = 0;
    setVolMode(0); // reset vol mode if set
    (akaiSolo) ?
    (
@@ -1479,6 +1491,11 @@ function OnPatBaseNav(dir)
      );
     
   );
+);
+
+function OnShift(state)
+(
+  isShifted = state;
 );
 
 function OnExtReset()
@@ -1522,6 +1539,9 @@ function onAkaiMidiMsg(msg1,msg23) local(n,ccNo,row,col, patBase)
 (
   ccNo = msg23 & 0x7F;
   n =(msg23 / 256) | 0;
+  amrCCno = ccNo;
+  amrN = n;
+  
   // button?
   (ccNo >= 20 && ccNo <= 26) ?
     (
@@ -1535,6 +1555,11 @@ function onAkaiMidiMsg(msg1,msg23) local(n,ccNo,row,col, patBase)
       ((akaiSolo == 0) && (row > 0 && col < 8 && (col + patBase) < listlength)) ? OnCellPress(row, col);
       
       ((row == 0 && col == 6) && (akaiRowSelect != 0)) ? onSoloPress();
+      
+      // pattern base navigation?
+      (row == 0 && col == 5) ? OnPatBaseNav(-1);  
+      (row == 0 && col == 6) ? OnPatBaseNav(1);
+                  
       
       // most functions disabled when row select enabled
       (akaiRowSelect == 0) ?
@@ -1552,13 +1577,11 @@ function onAkaiMidiMsg(msg1,msg23) local(n,ccNo,row,col, patBase)
       
           (row == 0 && col == 7) ? OnPatternClear();
           
-      // pattern base navigation?
-  
-            (row == 0 && col == 5) ? OnPatBaseNav(-1);  
-            (row == 0 && col == 6) ? OnPatBaseNav(1);
             
              //external reset triggered?               
             (row == 9 && col == 0) ? OnExtReset(); //Non-existent button on APC, see: getRow()/getCol()
+            (amrN == 98) ? OnShift(1);
+            (amrN == 99)? OnShift(0);
          ); 
           
           // volume mode toggle?
@@ -1585,12 +1608,15 @@ function isOkToSetCell(row,col) local (isOk)
   (akaiVolMode == 1 && col == 4) ? isOk = 0;
   isOk;
 );
-
+  
 function OnBeat(cbeatpos) local(init, lastbeatpos, thisrow, lastrow, firstTime)
 (  
   (reset_ctrl > 0) ? (
     sliderchange(slider43=0);
     reset_ctrl = 0;
+    akaiRowSelect = 0; // when selecting rows for velocity edit
+    akaiVolMode = 0; // 0  reduce vol else increase vol
+    patBaseNav = -8;
     resetAkai();
   );
   (init == 0) ?
@@ -1617,7 +1643,7 @@ setAkaiPat(cbeatpos);
           (isOkTosetCell(lastrow+1,8)) ? setCell(2,8,0);  // right side buttons off
           (isOkTosetCell(lastrow+1,8)) ? setCell(3,8,0);  // right side buttons off
           (isOkTosetCell(lastrow+1,8)) ? setCell(4,8,0);  // right side buttons off
-            (isOkTosetCell(navRow +1,8)) ? setCell(navRow + 1,8,1) ; 
+          (isOkTosetCell(navRow +1,8)) ? setCell(navRow + 1,8,1) ; 
         ): 
         (
           (isOkTosetCell(thisrow +1,8)) ? setCell(thisrow + 1,8,1);  // right side buttons on

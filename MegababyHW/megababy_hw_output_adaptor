@@ -1,0 +1,47 @@
+desc:OSC MB Output Adaptor
+
+slider1:0<0,1,1{apc,osc}>Output device
+
+@init
+
+@block
+// map CC 20 nn to note on nn 00 and CC 21, 22,23... 26 to note on nn 01,02, 03... 06 respectively
+// eats everything else
+
+output_adaptor=slider1|0;
+while(midirecv(ofs, msg1, msg2, msg3)) (
+  (output_adaptor == 0) ? 
+  (
+    (msg1 == 0xBF && msg2 >= 20 && msg2 <= 26) ? (
+    msg1 = 0x90;
+    v = msg2 - 20;
+    msg2 = msg3; 
+    msg3 = v;
+    midisend(ofs, msg1, msg2, msg3);
+    );
+  );
+  (output_adaptor == 1) ? 
+  (
+   (msg1 == 0xBF && msg2 >= 20 && msg2 <= 26 && msg3 > 63) ? (
+     msg1 = 0x90;
+     v = msg2 - 20;
+     msg2 = msg3; 
+     msg3 = v;
+     midisend(ofs, msg1, msg2, msg3);  
+   );
+  (msg1 == 0xBF && msg2 >= 20 && msg2 <= 26 && msg3 >=0 && msg3 <= 63) ? (
+  vel_in = msg2 - 20;
+      (vel_in == 0) ? (
+       msg1 = 0x81;
+       v = 0;
+      ) : (
+       msg1 = 0x91;
+       v = 1;
+      );
+      nn = msg3;
+      msg2 = nn; 
+      msg3 = v;
+     midisend(ofs, msg1, msg2, msg3);  
+    );
+  )
+);

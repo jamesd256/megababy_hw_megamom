@@ -1,0 +1,68 @@
+desc:Akai APC Mini Input Adaptor
+
+slider1:0<0,1,1{noshift,shift}>Shift state
+
+@init
+shiftState = 0;
+
+//shiftState=slider1|0;
+
+@block
+// Take AKAI note messages and turn them into CC messages
+// we send these on channel 15 so they don't pass right through and get sent back to the device
+while(midirecv(ofs, msg1,  msg2, msg3)) (
+  (msg1 == 0x90 ) ? (
+    //Debug
+    myMsg1 = msg1;
+    myMsg2 = msg2;
+    myMsg3 = msg3;
+
+    (msg2 ==98) ?
+    (
+      shiftState = 1;
+      sliderchange(slider1=shiftstate);
+            
+    );
+    msg1 = 0xBE;
+    v = msg2;
+    msg2 = 21;
+    msg3Offset = 0;
+    (shiftState == 1 && v > 71) ?
+    (
+      msg3Offset = 20;
+    );
+    msg3 = v + msg3Offset;
+    sendMsg1 = msg1;
+    sendMsg2 = msg2;
+    sendMsg3 = msg3;
+    midisend(ofs, msg1, msg2, msg3);
+  );
+  (msg1 == 0x80 ) ? (
+     offmyMsg1 = msg1;
+     offmyMsg2 = msg2;
+     offmyMsg3 = msg3;
+     
+     (msg2 ==98) ?
+     (
+      shiftState = 0;
+      sliderchange(slider1=shiftstate);
+      offmsg1 = 0xBE;
+      offv = offmsg2;
+      offmsg2 = 21;
+      offmsg3 = 99;
+      
+      midisend(ofs, offmsg1, offmsg2, offmsg3);
+     );
+   );
+  // faders
+  (msg1 == 0xB0) ? (
+    msg1 = 0xBE;
+    midisend(ofs,msg1,msg2,msg3);
+  ); 
+  //(msg1 == 0x9A ) ? (
+  //    msg1 = 0x9A;
+  //    msg2 = 1;
+  //    msg3 = 1;
+  //    midisend(ofs, msg1, msg2, msg3);
+  //);  
+);

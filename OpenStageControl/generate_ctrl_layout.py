@@ -207,14 +207,18 @@ def generate_block_column_widgets():
 		height = button_height - (2 * button_spacing)
 		
 		
-		if curr_row > 3 :
-			button_type = "toggle"
-			channel = 1
-			on = 1
-		else :
-			button_type = "push"
-			channel = 10
-			on = curr_row + 1
+		button_type = "toggle"
+		channel = 1
+		on = 1
+	
+		#if curr_row > 3 :
+		#	button_type = "toggle"
+		#	channel = 1
+		#	on = 1
+		#else :
+		#	button_type = "push"
+		#	channel = 10
+		#	on = curr_row + 1
 			
 		note = 82 + curr_row
 		
